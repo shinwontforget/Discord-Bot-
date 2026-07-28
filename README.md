@@ -19,8 +19,13 @@ A feature-rich, interactive Discord bot that lets server members play a custom *
 ## ✨ Features
 
 - **Interactive UI**: Buttons for rolling dice, buying properties, and ending turns—no messy text commands mid-game!
-- **South Park Theme**: Custom board with iconic locations (e.g., *Kyle's Toilet*, *Gooback Tax*, *Cheesy Poofs*, *Tynacorp*, *Mephesto's Genetic Engineering Ranch*, *Aaaaand, It's Gone!*).
-- **Turn-based 2-Player Gameplay**: Mention a friend to initiate a 1v1 Monopoly battle.
+- **🌍 World Edition Board**: 50 of the world's most popular countries in the pool — each game randomly selects 22 of them for a unique board every time!
+- **📊 Popularity-Based Economy**:
+  - Countries ranked by global popularity. Higher popularity = higher property prices, rent, and tax rates.
+  - 🏆 **Premium Tier** (Rank 1–15 — France, USA, Japan, UK, Spain…): Green & Dark Blue tiles with premium pricing.
+  - 🟠 **Mid Tier** (Rank 16–35 — India, Canada, UAE, Singapore…): Pink, Orange, Red, Yellow tiles with moderate pricing.
+  - 🟤 **Budget Tier** (Rank 36–50 — Iceland, Nepal, Maldives…): Brown & Light Blue tiles with affordable pricing.
+- **Turn-based 2 to 4 Player Gameplay**: Tag 1 to 3 friends to initiate a 2-4 player Monopoly battle.
 - **Dynamic Board Mechanics**:
   - Roll double dice and move across 40 board tiles.
   - Buy properties, utilities, and railroads.
@@ -35,7 +40,8 @@ A feature-rich, interactive Discord bot that lets server members play a custom *
 
 | Command | Usage | Description |
 | :--- | :--- | :--- |
-| `!start_monopoly` | `!start_monopoly @User` | Starts a new 2-player South Park Monopoly game against the tagged opponent in the current channel. |
+| `!start_monopoly` | `!start_monopoly @User1 [@User2] [@User3]` | Starts a new 2 to 4 player World Edition Monopoly game. A unique board with 22 randomly selected countries is generated each game. |
+| `!list_countries` | `!list_countries` | Displays all 50 countries in the World Monopoly pool, organized by popularity tier (Premium / Mid-Tier / Budget). |
 | `!end_monopoly` | `!end_monopoly` | Ends and cleans up any active Monopoly game running in the current channel. |
 
 ---
