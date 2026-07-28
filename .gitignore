@@ -1,0 +1,24 @@
+# Environment & Secrets (CRITICAL - DO NOT COMMIT)
+.env
+*.env
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & System Files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Large / Temporary / Unrelated test files
+*.pdf
+scratch/
