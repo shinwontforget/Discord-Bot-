@@ -1,6 +1,7 @@
 import os
 import asyncio
 import discord
+from aiohttp import web
 from discord.ext import commands
 from game import MonopolyGame, generate_random_country_board
 from board_renderer import render_board_image
@@ -631,9 +632,30 @@ async def board(ctx):
     embed.set_image(url="attachment://monopoly_board.png")
     await ctx.send(embed=embed, file=file)
 
-if __name__ == "__main__":
+# ---------------------------------------------------------------------------
+# Keep-alive web server (required by Render; pinged by UptimeRobot)
+# ---------------------------------------------------------------------------
+async def health_check(request):
+    return web.Response(text="Bot is alive!")
+
+async def run_webserver():
+    app = web.Application()
+    app.router.add_get("/", health_check)
+    runner = web.AppRunner(app)
+    await runner.setup()
+    port = int(os.environ.get("PORT", 8080))
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    print(f"Keep-alive server running on port {port}")
+
+async def main():
     token = os.environ.get("DISCORD_TOKEN")
     if not token:
-        print("Please set the DISCORD_TOKEN environment variable.")
-    else:
-        bot.run(token)
+        print("ERROR: DISCORD_TOKEN environment variable is not set.")
+        return
+    # Start the web server and the Discord bot concurrently
+    await run_webserver()
+    await bot.start(token)
+
+if __name__ == "__main__":
+    asyncio.run(main())
