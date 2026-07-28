@@ -22,3 +22,7 @@ Thumbs.db
 # Large / Temporary / Unrelated test files
 *.pdf
 scratch/
+
+# Discloud (not in use — using Render instead)
+discloud.config
+*.zip
