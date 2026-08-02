@@ -458,7 +458,8 @@ class TurnView(discord.ui.View):
 
 intents = discord.Intents.default()
 intents.message_content = True
-bot = commands.Bot(command_prefix="!", intents=intents)
+intents.members = True
+bot = commands.Bot(command_prefix="ms!", intents=intents)
 
 active_games = {} 
 
@@ -657,5 +658,11 @@ async def main():
     await run_webserver()
     await bot.start(token)
 
+@bot.event
+async def on_command_error(ctx, error):
+    await ctx.send(f"⚠️ Error: {error}")
+    print(f"Command error: {error}")
+
 if __name__ == "__main__":
     asyncio.run(main())
+
