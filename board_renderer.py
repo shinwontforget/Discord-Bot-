@@ -122,12 +122,15 @@ def render_board_image(game) -> io.BytesIO:
 
         # Draw Dynamic City / Special Tile Name
         if pos not in (0, 10, 20, 30):
-            raw_name = tile["name"]
             if tile_type == "property":
-                parts = raw_name.split(",")
-                city_part = parts[0].strip()
-                city_part = "".join([char for char in city_part if ord(char) < 128 or char.isalnum() or char == ' ']).strip()
-                clean_label = city_part.upper() if city_part else "PROPERTY"
+                city_name = tile.get("city", "")
+                if not city_name:
+                    raw_name = tile["name"]
+                    parts = raw_name.split(",")
+                    city_name = parts[0].strip()
+                # Clean leading emojis/spaces
+                city_name = "".join([c for c in city_name if not (0x1F600 <= ord(c) <= 0x1F9FF or 0x1F300 <= ord(c) <= 0x1F5FF or 0x1F680 <= ord(c) <= 0x1F6FF or 0x2600 <= ord(c) <= 0x27BF)]).strip()
+                clean_label = city_name.upper()[:12]
             elif tile_type == "community_chest":
                 clean_label = "TREASURY"
             elif tile_type == "chance":
@@ -135,14 +138,14 @@ def render_board_image(game) -> io.BytesIO:
             elif tile_type == "tax":
                 clean_label = "TAX"
             elif tile_type == "railroad":
-                clean_label = raw_name.replace("✈️", "").replace("Airport", "").strip().upper()
+                clean_label = "AIRPORT"
             elif tile_type == "utility":
-                clean_label = raw_name.replace("⚡", "").replace("📡", "").replace("☢️", "").replace("🛰️", "").replace("Grid", "").replace("Network", "").strip().upper()
+                clean_label = "UTILITY"
             else:
-                clean_label = tile_type.upper()
+                clean_label = tile_type.upper()[:10]
 
             # Dynamic Font Scaling for Tile Text
-            target_font_size = max(8, int(tile_w * 0.16))
+            target_font_size = max(8, min(12, int(tile_w * 0.14)))
             tile_font = get_font(target_font_size, bold=True)
 
             text_x = x1 + (tile_w // 2)
@@ -209,56 +212,12 @@ def render_board_image(game) -> io.BytesIO:
             # Layer 5: Centered Player Label
             draw.text((tx, ty), scheme["label"], fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
 
-    # 3. Draw Translucent Center Scorecard & Game Log Dashboard
-    cx1 = int(W * 0.23)
-    cy1 = int(H * 0.44)
-    cx2 = int(W * 0.77)
-    cy2 = int(H * 0.88)
-
-    draw.rectangle([cx1, cy1, cx2, cy2], fill=(10, 15, 29, 210), outline=(0, 240, 255, 180), width=2)
-    draw.rectangle([cx1 + 4, cy1 + 4, cx2 - 4, cy2 - 4], outline=(244, 114, 182, 100), width=1)
-
-    draw.text((cx1 + 20, cy1 + 15), "MUTSERI'S WORLD MONOPOLY — LIVE STANDINGS", fill=(0, 240, 255, 255), font=font_header)
-    draw.line([cx1 + 20, cy1 + 40, cx2 - 20, cy1 + 40], fill=(255, 255, 255, 60), width=1)
-
-    card_y = cy1 + 50
-    for idx, player in enumerate(game.player_list):
-        state = game.get_player_state(player.id)
-        scheme = PLAYER_NEON_SCHEMES[idx % len(PLAYER_NEON_SCHEMES)]
-        r, g, b = scheme["rgb"]
-        is_current = (player.id == game.get_current_player().id)
-        is_bankrupt = state.get("bankrupt", False)
-
-        card_bg = (30, 41, 59, 220) if is_current else (15, 23, 42, 180)
-        outline_c = (255, 0, 85, 255) if is_bankrupt else ((r, g, b, 255) if is_current else (71, 85, 105, 150))
-
-        draw.rectangle([cx1 + 20, card_y, cx2 - 20, card_y + 48], fill=card_bg, outline=outline_c, width=2)
-
-        draw.ellipse([cx1 + 32, card_y + 12, cx1 + 56, card_y + 36], fill=(r, g, b, 230), outline=(255, 255, 255, 255), width=2)
-        draw.text((cx1 + 44, card_y + 24), scheme["label"], fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
-
-        status_str = " 💥 BANKRUPT" if is_bankrupt else (" 🔒 IN JAIL" if state["in_jail"] else (" [TURN]" if is_current else ""))
-        draw.text((cx1 + 68, card_y + 10), f"{player.display_name}{status_str}", fill=(255, 255, 255, 255), font=font_body)
-
-        stats_line = f"Cash: ${state['money']}  |  Props: {len(state['properties'])}  |  Passes: {state.get('has_jail_card', 0)}"
-        draw.text((cx1 + 68, card_y + 28), stats_line, fill=(148, 163, 184, 255), font=font_tiny)
-
-        card_y += 56
-
-    draw.line([cx1 + 20, card_y + 6, cx2 - 20, card_y + 6], fill=(255, 255, 255, 60), width=1)
-    draw.text((cx1 + 20, card_y + 12), "RECENT GAME EVENTS", fill=(244, 114, 182, 255), font=font_header)
-
-    log_y = card_y + 34
-    recent_logs = game.log[-3:] if game.log else ["Game initialized. Roll the dice to begin!"]
-    for log_msg in recent_logs:
-        clean_log = log_msg.encode("ascii", "ignore").decode("ascii").strip()
-        draw.text((cx1 + 30, log_y), f"• {clean_log[:75]}", fill=(226, 232, 240, 255), font=font_tiny)
-        log_y += 18
-
     # Combine Base Image and Overlay
     final_img = Image.alpha_composite(base_img, overlay).convert("RGB")
 
     buf = io.BytesIO()
     final_img.save(buf, format="PNG")
+    buf.seek(0)
+    return buf
     buf.seek(0)
     return buf

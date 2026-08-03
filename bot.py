@@ -28,69 +28,8 @@ COLOR_LABELS = {
 }
 
 def build_board_embed(game: MonopolyGame) -> discord.Embed:
-    """Builds a rich Discord embed showing the full board state across 4 paths."""
-    board = game.board
+    """Builds a sleek Discord embed showing player scorecard and game state alongside the 2D board image."""
     player_list = game.player_list
-
-    pos_tokens: dict[int, list[str]] = {}
-    for i, player in enumerate(player_list):
-        state = game.get_player_state(player.id)
-        if not state.get("bankrupt", False):
-            p = state["position"]
-            st = get_player_stats(player.id, player.display_name)
-            token = st.get("custom_token") or PLAYER_TOKENS[i % len(PLAYER_TOKENS)]
-            pos_tokens.setdefault(p, []).append(token)
-
-    owner_names: dict[int, str] = {}
-    for pos, owner_id in game.properties_owned.items():
-        owner_names[pos] = game.players[owner_id]["member"].display_name
-
-    def render_tile(pos: int) -> str:
-        tile = board[pos]
-        t = tile["type"]
-        name = tile["name"]
-
-        tokens = " ".join(pos_tokens.get(pos, []))
-        tokens_str = f" {tokens}" if tokens else ""
-
-        if t == "go":
-            return f"`{pos:02}` 🛫 **START/GO**{tokens_str}"
-        elif t == "jail":
-            return f"`{pos:02}` 🛂 **Border Control**{tokens_str}"
-        elif t == "free_parking":
-            return f"`{pos:02}` 🏝️ **International Waters**{tokens_str}"
-        elif t == "go_to_jail":
-            return f"`{pos:02}` 🚨 **Deportation Zone**{tokens_str}"
-        elif t == "community_chest":
-            return f"`{pos:02}` 🏦 World Treasury{tokens_str}"
-        elif t == "chance":
-            return f"`{pos:02}` 🌐 Global News Event{tokens_str}"
-        elif t == "tax":
-            return f"`{pos:02}` 💸 {name} (-${tile['amount']}){tokens_str}"
-        elif t in ("railroad", "utility", "property"):
-            mortgage_tag = " *(Mortgaged)*" if tile.get("is_mortgaged", False) else ""
-            houses = tile.get("houses", 0)
-            h_tag = f" [🏢 Skyscraper]" if houses == 5 else (f" [{houses}🏠]" if houses > 0 else "")
-            
-            if pos in owner_names:
-                return f"`{pos:02}` {name} *(owned by {owner_names[pos]})*{h_tag}{mortgage_tag}{tokens_str}"
-            return f"`{pos:02}` {name} — ${tile['price']}{tokens_str}"
-        return f"`{pos:02}` {name}{tokens_str}"
-
-    embed = discord.Embed(
-        title="🌍 Mutseri's World Monopoly — Board State",
-        color=discord.Color.dark_gold()
-    )
-
-    path_ranges = [
-        ("🟤 Path 1 — Budget (Brown & Light Blue)", range(0, 10)),
-        ("🟠 Path 2 — Mid-Low (Pink & Orange)",     range(10, 20)),
-        ("🔴 Path 3 — Mid-High (Red & Yellow)",     range(20, 30)),
-        ("🏆 Path 4 — Premium (Green & Dark Blue)", range(30, 40)),
-    ]
-    for path_name, rng in path_ranges:
-        lines = [render_tile(i) for i in rng]
-        embed.add_field(name=path_name, value="\n".join(lines), inline=False)
 
     scorecard_lines = []
     for i, player in enumerate(player_list):
@@ -100,13 +39,23 @@ def build_board_embed(game: MonopolyGame) -> discord.Embed:
         jail_tag = " 🔒 In Jail" if state["in_jail"] else ""
         bankrupt_tag = " 💥 BANKRUPT" if state.get("bankrupt", False) else ""
         props = len(state["properties"])
+        tile_name = game.board[state["position"]]["name"]
         scorecard_lines.append(
-            f"{token} **{player.display_name}** — 💰 ${state['money']} | 🏠 {props} properties{jail_tag}{bankrupt_tag}"
+            f"{token} **{player.display_name}** — 💰 ${state['money']} | 🏠 {props} props{jail_tag}{bankrupt_tag}\n"
+            f" └ 📍 Currently on: **{tile_name}**"
         )
+
+    embed = discord.Embed(
+        title="🌍 Mutseri's World Monopoly — Live Board",
+        color=discord.Color.dark_gold()
+    )
     embed.add_field(name="📊 Player Scorecard", value="\n".join(scorecard_lines), inline=False)
 
+    recent_log = game.log[-3:] if game.log else ["Game started! Roll the dice."]
+    embed.add_field(name="📜 Recent Events", value="\n".join(recent_log), inline=False)
+
     current = game.get_current_player()
-    embed.set_footer(text=f"🎲 It is currently {current.display_name}'s turn (⏱️ 90s timer active).")
+    embed.set_footer(text=f"🎲 Current Turn: {current.display_name} (⏱️ 90s limit)")
     return embed
 
 
@@ -117,6 +66,7 @@ class TurnView(discord.ui.View):
         self.game.current_view = self
         self.channel_id = channel_id
         self.timer_task = None
+        self.message: discord.Message | None = None  # stored after the first send
         self.setup_buttons()
         self.reset_timer()
 
@@ -149,20 +99,28 @@ class TurnView(discord.ui.View):
             self.game.log_event(f"⏱️ TIME EXPIRED: {current_player.display_name}'s turn was automatically ended.")
             self.game.next_turn()
 
-            channel = bot.get_channel(self.channel_id)
-            if channel:
-                next_p = self.game.get_current_player()
-                embed = discord.Embed(
-                    title="⏱️ Turn Time Limit Expired (90s)",
-                    description=f"**{current_player.display_name}** took too long! Turn automatically passed to **{next_p.display_name}**.",
-                    color=discord.Color.orange()
-                )
-                self.setup_buttons()
-                buf = render_board_image(self.game)
-                file = discord.File(buf, filename="monopoly_board.png")
-                embed.set_image(url="attachment://monopoly_board.png")
-                await channel.send(embed=embed, view=self, file=file)
-                self.reset_timer()
+            next_p = self.game.get_current_player()
+            embed = discord.Embed(
+                title="⏱️ Turn Time Limit Expired (90s)",
+                description=f"**{current_player.display_name}** took too long! Turn automatically passed to **{next_p.display_name}**.",
+                color=discord.Color.orange()
+            )
+            self.setup_buttons()
+            buf = render_board_image(self.game)
+            file = discord.File(buf, filename="monopoly_board.png")
+            embed.set_image(url="attachment://monopoly_board.png")
+            if self.message:
+                try:
+                    await self.message.edit(embed=embed, view=self, attachments=[file])
+                except Exception:
+                    channel = bot.get_channel(self.channel_id)
+                    if channel:
+                        self.message = await channel.send(embed=embed, view=self, file=file)
+            else:
+                channel = bot.get_channel(self.channel_id)
+                if channel:
+                    self.message = await channel.send(embed=embed, view=self, file=file)
+            self.reset_timer()
         except asyncio.CancelledError:
             pass
 
@@ -570,7 +528,8 @@ async def start_monopoly(ctx, *opponents: discord.Member):
     file = discord.File(buf, filename="monopoly_board.png")
     embed.set_image(url="attachment://monopoly_board.png")
 
-    await ctx.send(embed=embed, view=view, file=file)
+    msg = await ctx.send(embed=embed, view=view, file=file)
+    view.message = msg  # store reference so timeout can edit instead of re-send
 
 @bot.command(name="trade", aliases=["t"])
 async def trade(ctx, target: discord.Member, offer_cash: int = 0, req_cash: int = 0):
@@ -742,7 +701,12 @@ async def help_command(ctx):
     )
 
     embed.set_footer(text="Command Prefix: ms! • Roll the dice & build your global empire!")
-    await ctx.send(embed=embed)
+    try:
+        await ctx.author.send(embed=embed)
+        if ctx.guild:
+            await ctx.send(f"📬 {ctx.author.mention}, I've sent you the command guide in your Direct Messages!")
+    except discord.Forbidden:
+        await ctx.send(f"⚠️ {ctx.author.mention}, I couldn't send you a Direct Message! Please check your privacy settings.", embed=embed)
 
 # ---------------------------------------------------------------------------
 # Keep-alive web server (required by Render; pinged by UptimeRobot)
