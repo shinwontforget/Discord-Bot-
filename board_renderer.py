@@ -128,48 +128,108 @@ def render_board_image(game) -> io.BytesIO:
                     raw_name = tile["name"]
                     parts = raw_name.split(",")
                     city_name = parts[0].strip()
-                # Clean leading emojis/spaces
+                # Strip emoji characters only
                 city_name = "".join([c for c in city_name if not (0x1F600 <= ord(c) <= 0x1F9FF or 0x1F300 <= ord(c) <= 0x1F5FF or 0x1F680 <= ord(c) <= 0x1F6FF or 0x2600 <= ord(c) <= 0x27BF)]).strip()
-                clean_label = city_name.upper()[:12]
+                # Split into two lines if long
+                words = city_name.upper().split()
+                if len(words) == 1:
+                    line1, line2 = words[0][:10], ""
+                elif len(words) == 2:
+                    line1, line2 = words[0][:10], words[1][:10]
+                else:
+                    line1 = " ".join(words[:len(words)//2 + 1])[:10]
+                    line2 = " ".join(words[len(words)//2 + 1:])[:10]
+                clean_label = line1
+                clean_label2 = line2
             elif tile_type == "community_chest":
-                clean_label = "TREASURY"
+                clean_label, clean_label2 = "TREASURY", ""
             elif tile_type == "chance":
-                clean_label = "NEWS"
+                clean_label, clean_label2 = "NEWS", ""
             elif tile_type == "tax":
-                clean_label = "TAX"
+                clean_label, clean_label2 = "TAX", ""
             elif tile_type == "railroad":
-                clean_label = "AIRPORT"
+                clean_label, clean_label2 = "AIRPORT", ""
             elif tile_type == "utility":
-                clean_label = "UTILITY"
+                clean_label, clean_label2 = "UTILITY", ""
             else:
-                clean_label = tile_type.upper()[:10]
+                clean_label, clean_label2 = tile_type.upper()[:10], ""
 
-            # Dynamic Font Scaling for Tile Text
-            target_font_size = max(8, min(12, int(tile_w * 0.14)))
+            # --- Cover template's baked-in text with a dark fill ---
+            # Determine the text zone for this tile side
+            pad = 3
+            if 1 <= pos <= 9:
+                # Top row: cover inner 80% horizontally, top 85% vertically (leave color-bar bottom)
+                cx1 = x1 + pad
+                cy1 = y1 + pad
+                cx2 = x2 - pad
+                cy2 = y2 - int(tile_h * 0.18)  # leave the colored bar strip at bottom
+            elif 21 <= pos <= 29:
+                # Bottom row: cover inner, leave color-bar at top
+                cx1 = x1 + pad
+                cy1 = y1 + int(tile_h * 0.18)  # leave colored bar at top
+                cx2 = x2 - pad
+                cy2 = y2 - pad
+            elif 11 <= pos <= 19:
+                # Right column: leave color-bar on left edge
+                cx1 = x1 + int(tile_w * 0.22)
+                cy1 = y1 + pad
+                cx2 = x2 - pad
+                cy2 = y2 - pad
+            else:  # 31 <= pos <= 39, left column
+                # Leave color-bar on right edge
+                cx1 = x1 + pad
+                cy1 = y1 + pad
+                cx2 = x2 - int(tile_w * 0.22)
+                cy2 = y2 - pad
+
+            draw.rectangle([cx1, cy1, cx2, cy2], fill=(8, 12, 28, 235))
+
+            # Font sizing: use tile's narrower dimension for scale
+            narrow = min(tile_w, tile_h)
+            target_font_size = max(9, min(14, int(narrow * 0.18)))
             tile_font = get_font(target_font_size, bold=True)
+            price_font = get_font(max(8, target_font_size - 2), bold=False)
 
-            text_x = x1 + (tile_w // 2)
-            text_y = y1 + int(tile_h * 0.18) if (1 <= pos <= 9 or 21 <= pos <= 29) else y1 + int(tile_h * 0.22)
-            
-            draw.text((text_x, text_y), clean_label, fill=(255, 255, 255, 230), font=tile_font, anchor="mm")
+            text_x = (cx1 + cx2) // 2
 
-            # Draw Price
-            if tile_type in ("property", "railroad", "utility") and pos not in game.properties_owned:
-                price = tile.get("price", 0)
-                price_y = y2 - int(tile_h * 0.20)
-                draw.text((text_x, price_y), f"${price}", fill=(0, 240, 255, 255), font=font_tiny, anchor="mm")
+            if tile_type == "property":
+                # Two-line city name, centered
+                line_gap = target_font_size + 2
+                total_text_h = (line_gap * (2 if clean_label2 else 1))
+                center_y = (cy1 + cy2) // 2
+                ty1 = center_y - total_text_h // 2 + line_gap // 2
+                draw.text((text_x, ty1), clean_label, fill=(255, 255, 255, 245), font=tile_font, anchor="mm")
+                if clean_label2:
+                    draw.text((text_x, ty1 + line_gap), clean_label2, fill=(255, 255, 255, 245), font=tile_font, anchor="mm")
+                # Price at bottom of text zone
+                if pos not in game.properties_owned:
+                    price = tile.get("price", 0)
+                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
+            else:
+                # Single label centered
+                center_y = (cy1 + cy2) // 2
+                draw.text((text_x, center_y), clean_label, fill=(255, 255, 255, 230), font=tile_font, anchor="mm")
+                # Price for railroad/utility
+                if tile_type in ("railroad", "utility") and pos not in game.properties_owned:
+                    price = tile.get("price", 0)
+                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
+                elif tile_type == "tax":
+                    amount = tile.get("amount", 0)
+                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"-${amount}", fill=(255, 80, 80, 255), font=price_font, anchor="mm")
 
             # Draw Mortgaged Badge
             if is_mortgaged:
-                draw.rectangle([x1 + 2, y1 + (tile_h // 3), x2 - 2, y2 - (tile_h // 3)], fill=(255, 0, 0, 160))
-                draw.text((text_x, y1 + (tile_h // 2)), "MORTGAGED", fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
+                draw.rectangle([cx1 + 2, cy1 + (tile_h // 3), cx2 - 2, cy1 + (2 * tile_h // 3)], fill=(255, 0, 0, 180))
+                draw.text((text_x, cy1 + (tile_h // 2)), "MORTGAGED", fill=(255, 255, 255, 255), font=price_font, anchor="mm")
 
             # Draw Houses/Skyscraper Indicator
             houses = tile.get("houses", 0)
             if houses > 0:
-                h_text = "🏢 SKY" if houses == 5 else f"🏠x{houses}"
-                draw.rectangle([x1 + 4, y1 + 4, x1 + 38, y1 + 18], fill=(0, 240, 255, 200))
-                draw.text((x1 + 21, y1 + 11), h_text, fill=(0, 0, 0, 255), font=font_tiny, anchor="mm")
+                h_text = "SKY" if houses == 5 else f"{houses}H"
+                hw = 26
+                hh = 14
+                draw.rectangle([cx1 + 2, cy1 + 2, cx1 + hw, cy1 + hh], fill=(0, 200, 255, 230))
+                draw.text((cx1 + hw // 2 + 1, cy1 + hh // 2 + 1), h_text, fill=(0, 0, 0, 255), font=price_font, anchor="mm")
 
     # 2. Draw Multi-Layer Glowing Neon Player Piece Locators
     pos_players: dict[int, list[int]] = {}
