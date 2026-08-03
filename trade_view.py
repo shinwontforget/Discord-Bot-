@@ -15,7 +15,7 @@ class TradeProposalView(discord.ui.View):
         self.disable_all_items()
 
     @discord.ui.button(label="✅ Accept Deal", style=discord.ButtonStyle.green, custom_id="trade_accept")
-    async def accept_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def accept_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.target.id:
             await interaction.response.send_message(f"Only {self.target.display_name} can accept this trade proposal!", ephemeral=True)
             return
@@ -58,7 +58,7 @@ class TradeProposalView(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
     @discord.ui.button(label="❌ Decline Deal", style=discord.ButtonStyle.red, custom_id="trade_decline")
-    async def decline_callback(self, button: discord.ui.Button, interaction: discord.Interaction):
+    async def decline_callback(self, interaction: discord.Interaction, button: discord.ui.Button):
         if interaction.user.id != self.target.id and interaction.user.id != self.sender.id:
             await interaction.response.send_message("You cannot reject this proposal!", ephemeral=True)
             return

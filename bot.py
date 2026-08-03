@@ -515,14 +515,14 @@ async def on_ready():
 MIN_PLAYERS = 2
 MAX_FREE_PLAYERS = 4
 
-@bot.command()
+@bot.command(name="start_monopoly", aliases=["sm", "start", "monopoly"])
 async def start_monopoly(ctx, *opponents: discord.Member):
     if ctx.channel.id in active_games:
         await ctx.send("A game is already running in this channel!")
         return
 
     if not opponents:
-        await ctx.send("Please mention 1 to 3 opponents to play! Example: `!start_monopoly @User1 @User2`")
+        await ctx.send("Please mention 1 to 3 opponents to play! Example: `ms!sm @User1 @User2`")
         return
 
     if any(opp.bot for opp in opponents):
@@ -572,7 +572,7 @@ async def start_monopoly(ctx, *opponents: discord.Member):
 
     await ctx.send(embed=embed, view=view, file=file)
 
-@bot.command()
+@bot.command(name="trade", aliases=["t"])
 async def trade(ctx, target: discord.Member, offer_cash: int = 0, req_cash: int = 0):
     """Propose a 90-second trade deal with another player."""
     if ctx.channel.id not in active_games:
@@ -592,7 +592,7 @@ async def trade(ctx, target: discord.Member, offer_cash: int = 0, req_cash: int 
     )
     await ctx.send(embed=embed, view=view)
 
-@bot.command()
+@bot.command(name="daily", aliases=["d"])
 async def daily(ctx):
     """Claims daily reward cash and streak bonuses."""
     success, msg, reward = claim_daily(ctx.author.id, ctx.author.display_name)
@@ -603,7 +603,7 @@ async def daily(ctx):
     )
     await ctx.send(embed=embed)
 
-@bot.command()
+@bot.command(name="stats", aliases=["s"])
 async def stats(ctx, member: discord.Member = None):
     """Displays player statistics and career performance."""
     target = member or ctx.author
@@ -627,7 +627,7 @@ async def stats(ctx, member: discord.Member = None):
 
     await ctx.send(embed=embed)
 
-@bot.command()
+@bot.command(name="leaderboard", aliases=["lb", "top"])
 async def leaderboard(ctx):
     """Displays top 10 Monopoly Tycoons on the server."""
     top_players = get_top_leaderboard(10)
@@ -651,13 +651,13 @@ async def leaderboard(ctx):
     )
     await ctx.send(embed=embed)
 
-@bot.command()
+@bot.command(name="set_token", aliases=["st", "token"])
 async def set_token(ctx, emoji: str):
     """Equips a custom player token emoji."""
     success, msg = set_custom_token(ctx.author.id, ctx.author.display_name, emoji)
     await ctx.send(msg)
 
-@bot.command()
+@bot.command(name="end_monopoly", aliases=["em", "end", "stop"])
 async def end_monopoly(ctx):
     if ctx.channel.id in active_games:
         game = active_games.pop(ctx.channel.id)
@@ -667,7 +667,7 @@ async def end_monopoly(ctx):
     else:
         await ctx.send("There is no active Monopoly game in this channel.")
 
-@bot.command()
+@bot.command(name="board", aliases=["b"])
 async def board(ctx):
     if ctx.channel.id not in active_games:
         await ctx.send("There is no active Monopoly game in this channel!")
@@ -679,21 +679,21 @@ async def board(ctx):
     embed.set_image(url="attachment://monopoly_board.png")
     await ctx.send(embed=embed, file=file)
 
-@bot.command(name="help")
+@bot.command(name="help", aliases=["h"])
 async def help_command(ctx):
     """Displays a list of all available commands and how to play."""
     embed = discord.Embed(
         title="🌍 Mutseri's World Monopoly — Command Guide",
-        description="Welcome to **Mutseri's World Monopoly**! Here are all the available commands to manage games, trade, check career stats, and claim daily rewards.",
+        description="Welcome to **Mutseri's World Monopoly**! Here are all the available commands and shortcuts to manage games, trade, check career stats, and claim daily rewards.",
         color=discord.Color.blue()
     )
 
     embed.add_field(
         name="🎮 Game Controls",
         value=(
-            "`ms!start_monopoly @user1 [@user2]` — Start a 2–4 player game in this channel.\n"
-            "`ms!board` — View the live 2D board render and full property list.\n"
-            "`ms!end_monopoly` — End the active Monopoly game in this channel."
+            "`ms!start_monopoly` (`ms!sm`) @user1 [@user2] — Start a 2–4 player game.\n"
+            "`ms!board` (`ms!b`) — View the live 2D board render and full property list.\n"
+            "`ms!end_monopoly` (`ms!em`) — End the active Monopoly game in this channel."
         ),
         inline=False
     )
@@ -701,7 +701,7 @@ async def help_command(ctx):
     embed.add_field(
         name="🤝 Trading & Actions",
         value=(
-            "`ms!trade @user [offer_cash] [req_cash]` — Propose a 90s trade deal.\n"
+            "`ms!trade` (`ms!t`) @user [offer_cash] [req_cash] — Propose a 90s trade deal.\n"
             "ℹ️ *In-game turn actions (Rolling, Buying, Building, Mortgaging, Unmortgaging, Selling) are played using interactive buttons under the board!*"
         ),
         inline=False
@@ -710,8 +710,8 @@ async def help_command(ctx):
     embed.add_field(
         name="💰 Daily Rewards & Customization",
         value=(
-            "`ms!daily` — Claim daily cash + streak bonus (60h grace period).\n"
-            "`ms!set_token <emoji>` — Equip a custom token emoji (`🔴`, `🔵`, `🟢`, `🟡`, `👑`, `🚀`, `💎`, `🦁`, etc.)."
+            "`ms!daily` (`ms!d`) — Claim daily cash + streak bonus (60h grace period).\n"
+            "`ms!set_token` (`ms!st`) <emoji> — Equip a custom token emoji (`🔴`, `🔵`, `🟢`, `🟡`, `👑`, `🚀`, `💎`, `🦁`, etc.)."
         ),
         inline=False
     )
@@ -719,19 +719,30 @@ async def help_command(ctx):
     embed.add_field(
         name="📊 Stats & Leaderboards",
         value=(
-            "`ms!stats [@user]` — View career wins, total games played, win rate, and streak.\n"
-            "`ms!leaderboard` — View the top 10 Monopoly Tycoons on the server."
+            "`ms!stats` (`ms!s`) [@user] — View career wins, total games played, win rate, and streak.\n"
+            "`ms!leaderboard` (`ms!lb`) — View the top 10 Monopoly Tycoons on the server."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="⚡ Shortened Commands Cheat Sheet",
+        value=(
+            "• `ms!sm` ➔ `ms!start_monopoly`\n"
+            "• `ms!em` ➔ `ms!end_monopoly`\n"
+            "• `ms!b` ➔ `ms!board`\n"
+            "• `ms!t` ➔ `ms!trade`\n"
+            "• `ms!d` ➔ `ms!daily`\n"
+            "• `ms!s` ➔ `ms!stats`\n"
+            "• `ms!lb` ➔ `ms!leaderboard`\n"
+            "• `ms!st` ➔ `ms!set_token`\n"
+            "• `ms!h` ➔ `ms!help`"
         ),
         inline=False
     )
 
     embed.set_footer(text="Command Prefix: ms! • Roll the dice & build your global empire!")
-    try:
-        await ctx.author.send(embed=embed)
-        if ctx.guild:
-            await ctx.send(f"📬 {ctx.author.mention}, I've sent you the command guide in your Direct Messages!")
-    except discord.Forbidden:
-        await ctx.send(f"⚠️ {ctx.author.mention}, I couldn't send you a Direct Message! Please check your privacy settings.", embed=embed)
+    await ctx.send(embed=embed)
 
 # ---------------------------------------------------------------------------
 # Keep-alive web server (required by Render; pinged by UptimeRobot)
