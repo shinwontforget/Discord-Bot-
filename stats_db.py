@@ -75,8 +75,9 @@ def claim_daily(user_id: int, display_name: str) -> tuple[bool, str, int]:
         mins = (remaining_secs % 3600) // 60
         return False, f"⏳ You have already claimed your daily bonus today! Please wait **{hours}h {mins}m**.", 0
 
-    # Streak calculation
-    if elapsed < cooldown * 2:
+    # Streak calculation: must have claimed before and within 60 hours (24h cooldown + 36h grace period)
+    last_daily = p_data.get("last_daily", 0)
+    if last_daily > 0 and elapsed <= (cooldown * 2.5):
         streak = p_data.get("daily_streak", 0) + 1
     else:
         streak = 1

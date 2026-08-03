@@ -212,6 +212,12 @@ class TurnView(discord.ui.View):
                     build_btn.callback = self.build_callback
                     self.add_item(build_btn)
 
+                has_mortgaged = any(self.game.board[p].get("is_mortgaged", False) for p in player_state["properties"])
+                if has_mortgaged:
+                    unmort_btn = discord.ui.Button(label="🔓 Unmortgage Property", style=discord.ButtonStyle.secondary, custom_id="unmortgage")
+                    unmort_btn.callback = self.unmortgage_callback
+                    self.add_item(unmort_btn)
+
                 end_btn = discord.ui.Button(label="⏩ End Turn", style=discord.ButtonStyle.red, custom_id="end")
                 end_btn.callback = self.end_callback
                 self.add_item(end_btn)
@@ -320,6 +326,35 @@ class TurnView(discord.ui.View):
             color=discord.Color.gold()
         )
         await self.update_turn_message(interaction, embed)
+
+    async def unmortgage_callback(self, interaction: discord.Interaction):
+        current_player = self.game.get_current_player()
+        if interaction.user.id != current_player.id:
+            await interaction.response.send_message("It's not your turn!", ephemeral=True)
+            return
+
+        player_state = self.game.get_player_state(current_player.id)
+        mortgaged = [p for p in player_state["properties"] if self.game.board[p].get("is_mortgaged", False)]
+        if not mortgaged:
+            await interaction.response.send_message("You have no mortgaged properties to unmortgage!", ephemeral=True)
+            return
+
+        pos = mortgaged[0]
+        tile = self.game.board[pos]
+        cost = int((tile["price"] // 2) * 1.1)
+        if player_state["money"] < cost:
+            await interaction.response.send_message(f"You need ${cost} to unmortgage {tile['name']}!", ephemeral=True)
+            return
+
+        if self.game.unmortgage_property(current_player.id, pos):
+            embed = discord.Embed(
+                title="🔓 Property Unmortgaged",
+                description=f"Unmortgaged **{tile['name']}** for ${cost}!\n\n" + "\n".join(self.game.log[-2:]),
+                color=discord.Color.green()
+            )
+            await self.update_turn_message(interaction, embed)
+        else:
+            await interaction.response.send_message("Failed to unmortgage property.", ephemeral=True)
 
     async def sell_house_callback(self, interaction: discord.Interaction):
         current_player = self.game.get_current_player()

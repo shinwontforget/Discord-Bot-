@@ -101,7 +101,6 @@ def generate_random_country_board():
         {"name": "🛰️ Global Satellite Hub",      "type": "utility", "price": 200, "is_mortgaged": False},
     ]
 
-    board._featured = [b1, b2, ml1, ml2, mh1, mh2, p1, p2]
     return board
 
 class MonopolyGame:

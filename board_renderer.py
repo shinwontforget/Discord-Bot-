@@ -23,14 +23,18 @@ PLAYER_COLOR_SCHEMES = [
 
 
 def get_font(size=14, bold=False):
-    try:
-        font_name = "arialbd.ttf" if bold else "arial.ttf"
-        return ImageFont.truetype(font_name, size)
-    except IOError:
+    font_candidates = [
+        "arialbd.ttf" if bold else "arial.ttf",
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf" if bold else "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/freefont/FreeSansBold.ttf" if bold else "/usr/share/fonts/truetype/freefont/FreeSans.ttf",
+        "DejaVuSans-Bold.ttf" if bold else "DejaVuSans.ttf",
+    ]
+    for font_name in font_candidates:
         try:
-            return ImageFont.truetype("DejaVuSans.ttf", size)
+            return ImageFont.truetype(font_name, size)
         except IOError:
-            return ImageFont.load_default()
+            continue
+    return ImageFont.load_default()
 
 def get_tile_bounds(pos: int) -> tuple[int, int, int, int]:
     if pos == 0: return (1060, 1060, 1220, 1220)
