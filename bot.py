@@ -114,10 +114,16 @@ class TurnView(discord.ui.View):
     def __init__(self, game, channel_id):
         super().__init__(timeout=None)
         self.game = game
+        self.game.current_view = self
         self.channel_id = channel_id
         self.timer_task = None
         self.setup_buttons()
         self.reset_timer()
+
+    def stop(self):
+        if self.timer_task and not self.timer_task.done():
+            self.timer_task.cancel()
+        super().stop()
 
     def reset_timer(self):
         if self.timer_task and not self.timer_task.done():
@@ -127,6 +133,9 @@ class TurnView(discord.ui.View):
     async def turn_timeout_task(self):
         try:
             await asyncio.sleep(90)  # 90-second turn limit
+            if self.channel_id not in active_games or active_games.get(self.channel_id) != self.game:
+                return
+
             current_player = self.game.get_current_player()
             player_state = self.game.get_player_state(current_player.id)
 
@@ -651,8 +660,10 @@ async def set_token(ctx, emoji: str):
 @bot.command()
 async def end_monopoly(ctx):
     if ctx.channel.id in active_games:
-        del active_games[ctx.channel.id]
-        await ctx.send("The Monopoly game in this channel has been ended.")
+        game = active_games.pop(ctx.channel.id)
+        if hasattr(game, "current_view") and game.current_view:
+            game.current_view.stop()
+        await ctx.send("🛑 The Monopoly game in this channel has been ended.")
     else:
         await ctx.send("There is no active Monopoly game in this channel.")
 

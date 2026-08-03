@@ -1,4 +1,6 @@
+import os
 import io
+import shutil
 from PIL import Image, ImageDraw, ImageFont
 
 COLOR_HEX_MAP = {
@@ -14,13 +16,21 @@ COLOR_HEX_MAP = {
 
 from stats_db import get_player_stats
 
-PLAYER_COLOR_SCHEMES = [
-    {"fill": (239, 68, 68),   "outline": (255, 255, 255), "label": "P1"},
-    {"fill": (59, 130, 246),  "outline": (255, 255, 255), "label": "P2"},
-    {"fill": (34, 197, 94),   "outline": (255, 255, 255), "label": "P3"},
-    {"fill": (234, 179, 8),   "outline": (0, 0, 0),       "label": "P4"},
+PLAYER_NEON_SCHEMES = [
+    {"rgb": (255, 0, 85),   "hex": "#FF0055", "label": "P1"},  # Neon Pink/Red
+    {"rgb": (0, 240, 255),  "hex": "#00F0FF", "label": "P2"},  # Neon Cyan
+    {"rgb": (57, 255, 20),  "hex": "#39FF14", "label": "P3"},  # Neon Green
+    {"rgb": (255, 230, 0),  "hex": "#FFE600", "label": "P4"},  # Neon Gold
 ]
 
+TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "board_template.png")
+ALT_SOURCE = r"C:\Users\Soumil\.gemini\antigravity-ide\brain\e8f112d4-3ae1-4183-a2d1-7820ce3f0e91\media__1785782821637.png"
+
+if not os.path.exists(TEMPLATE_PATH) and os.path.exists(ALT_SOURCE):
+    try:
+        shutil.copy(ALT_SOURCE, TEMPLATE_PATH)
+    except Exception:
+        pass
 
 def get_font(size=14, bold=False):
     font_candidates = [
@@ -36,99 +46,129 @@ def get_font(size=14, bold=False):
             continue
     return ImageFont.load_default()
 
-def get_tile_bounds(pos: int) -> tuple[int, int, int, int]:
-    if pos == 0: return (1060, 1060, 1220, 1220)
-    elif pos == 10: return (0, 1060, 160, 1220)
-    elif pos == 20: return (0, 0, 160, 160)
-    elif pos == 30: return (1060, 0, 1220, 160)
-    elif 1 <= pos <= 9:
-        x1 = 1060 - pos * 100
-        return (x1, 1060, x1 + 100, 1220)
-    elif 11 <= pos <= 19:
-        y1 = 1060 - (pos - 10) * 100
-        return (0, y1, 160, y1 + 100)
-    elif 21 <= pos <= 29:
-        x1 = 160 + (pos - 20) * 100
-        return (x1, 0, x1 + 100, 160)
-    elif 31 <= pos <= 39:
-        y1 = 160 + (pos - 30) * 100
-        return (1060, y1, 1220, y1 + 100)
+def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
+    margin_x_left = int(0.132 * W)
+    margin_x_right = int(0.868 * W)
+    margin_y_top = int(0.160 * H)
+    margin_y_bottom = int(0.840 * H)
+
+    tile_w = (margin_x_right - margin_x_left) / 9.0
+    tile_h = (margin_y_bottom - margin_y_top) / 9.0
+
+    if pos == 0:  # Top-Left START
+        return (0, 0, margin_x_left, margin_y_top)
+    elif pos == 10:  # Top-Right JAIL
+        return (margin_x_right, 0, W, margin_y_top)
+    elif pos == 20:  # Bottom-Right VACATION
+        return (margin_x_right, margin_y_bottom, W, H)
+    elif pos == 30:  # Bottom-Left GO TO JAIL
+        return (0, margin_y_bottom, margin_x_left, H)
+    elif 1 <= pos <= 9:  # Top Row (left to right)
+        x1 = int(margin_x_left + (pos - 1) * tile_w)
+        return (x1, 0, int(x1 + tile_w), margin_y_top)
+    elif 11 <= pos <= 19:  # Right Column (top to bottom)
+        y1 = int(margin_y_top + (pos - 11) * tile_h)
+        return (margin_x_right, y1, W, int(y1 + tile_h))
+    elif 21 <= pos <= 29:  # Bottom Row (right to left)
+        x1 = int(margin_x_right - (pos - 20) * tile_w)
+        return (x1, margin_y_bottom, int(x1 + tile_w), H)
+    elif 31 <= pos <= 39:  # Left Column (bottom to top)
+        y1 = int(margin_y_bottom - (pos - 30) * tile_h)
+        return (0, int(y1 - tile_h), margin_x_left, int(y1))
     raise ValueError(f"Invalid position {pos}")
 
 def render_board_image(game) -> io.BytesIO:
-    width, height = 1220, 1220
-    img = Image.new("RGB", (width, height), "#0F172A")
-    draw = ImageDraw.Draw(img)
+    # Ensure template image is copied locally
+    if not os.path.exists(TEMPLATE_PATH) and os.path.exists(ALT_SOURCE):
+        try:
+            shutil.copy(ALT_SOURCE, TEMPLATE_PATH)
+        except Exception:
+            pass
 
-    font_title = get_font(28, bold=True)
-    font_header = get_font(18, bold=True)
-    font_body = get_font(14, bold=False)
-    font_small = get_font(11, bold=False)
-    font_tiny = get_font(9, bold=False)
+    if os.path.exists(TEMPLATE_PATH):
+        base_img = Image.open(TEMPLATE_PATH).convert("RGBA")
+    else:
+        # High quality dark neon fallback canvas if template image missing
+        base_img = Image.new("RGBA", (1200, 960), (10, 15, 29, 255))
 
-    # 1. Draw 40 Tiles
+    W, H = base_img.size
+
+    # Create overlay layer for translucent glows and clean text
+    overlay = Image.new("RGBA", (W, H), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
+
+    font_header = get_font(max(12, int(W * 0.013)), bold=True)
+    font_body = get_font(max(10, int(W * 0.011)), bold=False)
+    font_tiny = get_font(max(8, int(W * 0.009)), bold=False)
+
+    # 1. Overlay Dynamic Property Text, Owner Badges & Mortgaged Status
     for pos in range(40):
-        x1, y1, x2, y2 = get_tile_bounds(pos)
+        x1, y1, x2, y2 = get_tile_bounds(pos, W, H)
         tile = game.board[pos]
         tile_type = tile["type"]
         is_mortgaged = tile.get("is_mortgaged", False)
+        tile_w = x2 - x1
+        tile_h = y2 - y1
 
-        bg_color = "#334155" if pos in (0, 10, 20, 30) else ("#475569" if is_mortgaged else "#1E293B")
-        draw.rectangle([x1, y1, x2, y2], fill=bg_color, outline="#475569", width=2)
-
-        # Draw banner strip for properties
-        if tile_type == "property":
-            c_hex = COLOR_HEX_MAP.get(tile.get("color", ""), "#94A3B8")
-            banner_size = 28
-            if 1 <= pos <= 9:
-                draw.rectangle([x1, y1, x2, y1 + banner_size], fill=c_hex)
-            elif 11 <= pos <= 19:
-                draw.rectangle([x2 - banner_size, y1, x2, y2], fill=c_hex)
-            elif 21 <= pos <= 29:
-                draw.rectangle([x1, y2 - banner_size, x2, y2], fill=c_hex)
-            elif 31 <= pos <= 39:
-                draw.rectangle([x1, y1, x1 + banner_size, y2], fill=c_hex)
-
-            # Draw Houses/Skyscrapers on banner
-            houses = tile.get("houses", 0)
-            if houses > 0:
-                h_text = "🏢 SKY" if houses == 5 else f"🏠x{houses}"
-                draw.text((x1 + 8, y1 + 6), h_text, fill="#FFFFFF", font=font_tiny)
-
-        # Draw owner border badge
+        # Draw Owner Glow Border
         if pos in game.properties_owned:
             owner_id = game.properties_owned[pos]
             owner_idx = next((i for i, p in enumerate(game.player_list) if p.id == owner_id), 0)
-            owner_color = PLAYER_COLOR_SCHEMES[owner_idx % len(PLAYER_COLOR_SCHEMES)]["fill"]
-            draw.rectangle([x1 + 3, y1 + 3, x2 - 3, y2 - 3], outline=owner_color, width=3)
+            scheme = PLAYER_NEON_SCHEMES[owner_idx % len(PLAYER_NEON_SCHEMES)]
+            r, g, b = scheme["rgb"]
 
-        # Tile Label
-        name = tile["name"]
-        clean_name = name.encode("ascii", "ignore").decode("ascii").strip()
-        if not clean_name:
-            if tile_type == "go": clean_name = "START / GO"
-            elif tile_type == "jail": clean_name = "BORDER CTRL"
-            elif tile_type == "free_parking": clean_name = "INTL WATERS"
-            elif tile_type == "go_to_jail": clean_name = "DEPORTED"
-            elif tile_type == "community_chest": clean_name = "TREASURY"
-            elif tile_type == "chance": clean_name = "GLOBAL NEWS"
-            elif tile_type == "tax": clean_name = "TAX"
-            else: clean_name = tile_type.upper()
+            draw.rectangle([x1 + 1, y1 + 1, x2 - 1, y2 - 1], outline=(r, g, b, 120), width=4)
+            draw.rectangle([x1 + 3, y1 + 3, x2 - 3, y2 - 3], outline=(r, g, b, 255), width=2)
 
-        if is_mortgaged:
-            clean_name = f"[MORTGAGED] {clean_name}"
+        # Draw Dynamic City / Special Tile Name
+        if pos not in (0, 10, 20, 30):
+            raw_name = tile["name"]
+            if tile_type == "property":
+                parts = raw_name.split(",")
+                city_part = parts[0].strip()
+                city_part = "".join([char for char in city_part if ord(char) < 128 or char.isalnum() or char == ' ']).strip()
+                clean_label = city_part.upper() if city_part else "PROPERTY"
+            elif tile_type == "community_chest":
+                clean_label = "TREASURY"
+            elif tile_type == "chance":
+                clean_label = "NEWS"
+            elif tile_type == "tax":
+                clean_label = "TAX"
+            elif tile_type == "railroad":
+                clean_label = raw_name.replace("✈️", "").replace("Airport", "").strip().upper()
+            elif tile_type == "utility":
+                clean_label = raw_name.replace("⚡", "").replace("📡", "").replace("☢️", "").replace("🛰️", "").replace("Grid", "").replace("Network", "").strip().upper()
+            else:
+                clean_label = tile_type.upper()
 
-        short_name = clean_name[:16] + ".." if len(clean_name) > 18 else clean_name
+            # Dynamic Font Scaling for Tile Text
+            target_font_size = max(8, int(tile_w * 0.16))
+            tile_font = get_font(target_font_size, bold=True)
 
-        draw.text((x1 + 6, y1 + 4), f"#{pos:02d}", fill="#94A3B8", font=font_tiny)
-        text_y = y1 + 32 if (1 <= pos <= 9 or tile_type == "property") else y1 + 20
-        draw.text((x1 + 6, text_y), short_name, fill="#F8FAFC", font=font_tiny)
+            text_x = x1 + (tile_w // 2)
+            text_y = y1 + int(tile_h * 0.18) if (1 <= pos <= 9 or 21 <= pos <= 29) else y1 + int(tile_h * 0.22)
+            
+            draw.text((text_x, text_y), clean_label, fill=(255, 255, 255, 230), font=tile_font, anchor="mm")
 
-        if tile_type in ("property", "railroad", "utility") and pos not in game.properties_owned:
-            price = tile.get("price", 0)
-            draw.text((x1 + 6, y2 - 18), f"${price}", fill="#38BDF8", font=font_tiny)
+            # Draw Price
+            if tile_type in ("property", "railroad", "utility") and pos not in game.properties_owned:
+                price = tile.get("price", 0)
+                price_y = y2 - int(tile_h * 0.20)
+                draw.text((text_x, price_y), f"${price}", fill=(0, 240, 255, 255), font=font_tiny, anchor="mm")
 
-    # 2. Draw Player Tokens
+            # Draw Mortgaged Badge
+            if is_mortgaged:
+                draw.rectangle([x1 + 2, y1 + (tile_h // 3), x2 - 2, y2 - (tile_h // 3)], fill=(255, 0, 0, 160))
+                draw.text((text_x, y1 + (tile_h // 2)), "MORTGAGED", fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
+
+            # Draw Houses/Skyscraper Indicator
+            houses = tile.get("houses", 0)
+            if houses > 0:
+                h_text = "🏢 SKY" if houses == 5 else f"🏠x{houses}"
+                draw.rectangle([x1 + 4, y1 + 4, x1 + 38, y1 + 18], fill=(0, 240, 255, 200))
+                draw.text((x1 + 21, y1 + 11), h_text, fill=(0, 0, 0, 255), font=font_tiny, anchor="mm")
+
+    # 2. Draw Multi-Layer Glowing Neon Player Piece Locators
     pos_players: dict[int, list[int]] = {}
     for idx, player in enumerate(game.player_list):
         state = game.get_player_state(player.id)
@@ -137,68 +177,88 @@ def render_board_image(game) -> io.BytesIO:
             pos_players.setdefault(p, []).append(idx)
 
     for pos, player_indices in pos_players.items():
-        x1, y1, x2, y2 = get_tile_bounds(pos)
+        x1, y1, x2, y2 = get_tile_bounds(pos, W, H)
         center_x = (x1 + x2) // 2
         center_y = (y1 + y2) // 2
-        token_radius = 12
         count = len(player_indices)
+
         for i, p_idx in enumerate(player_indices):
-            offset_x = (i - (count - 1) / 2) * 26
-            tx = int(center_x + offset_x)
-            ty = center_y + 10
-            scheme = PLAYER_COLOR_SCHEMES[p_idx % len(PLAYER_COLOR_SCHEMES)]
-            draw.ellipse(
-                [tx - token_radius, ty - token_radius, tx + token_radius, ty + token_radius],
-                fill=scheme["fill"],
-                outline=scheme["outline"],
-                width=2
-            )
-            draw.text((tx - 6, ty - 7), scheme["label"], fill="#FFFFFF", font=font_tiny)
+            offset_x = int((i - (count - 1) / 2) * (W * 0.022))
+            tx = center_x + offset_x
+            ty = center_y + int(H * 0.015) if pos not in (0, 10, 20, 30) else center_y
 
-    # 3. Draw Center Dashboard
-    cx1, cy1, cx2, cy2 = 180, 180, 1040, 1040
-    draw.rectangle([cx1, cy1, cx2, cy2], fill="#0F172A", outline="#334155", width=3)
-    draw.rectangle([cx1 + 10, cy1 + 10, cx2 - 10, cy2 - 10], fill="#1E293B", outline="#475569", width=2)
+            scheme = PLAYER_NEON_SCHEMES[p_idx % len(PLAYER_NEON_SCHEMES)]
+            r, g, b = scheme["rgb"]
 
-    draw.text((cx1 + 30, cy1 + 30), "MUTSERI'S WORLD MONOPOLY", fill="#F59E0B", font=font_title)
-    draw.line([cx1 + 30, cy1 + 70, cx2 - 30, cy1 + 70], fill="#475569", width=2)
+            # Layer 1: Translucent Glowing Aura
+            r_aura = int(W * 0.018)
+            draw.ellipse([tx - r_aura, ty - r_aura, tx + r_aura, ty + r_aura], fill=(r, g, b, 70))
 
-    draw.text((cx1 + 30, cy1 + 85), "PLAYER SCORECARD", fill="#38BDF8", font=font_header)
+            # Layer 2: Secondary Bloom Ring
+            r_bloom = int(W * 0.014)
+            draw.ellipse([tx - r_bloom, ty - r_bloom, tx + r_bloom, ty + r_bloom], fill=(r, g, b, 140))
 
-    card_y = cy1 + 120
+            # Layer 3: Crisp Outer White Ring
+            r_ring = int(W * 0.011)
+            draw.ellipse([tx - r_ring, ty - r_ring, tx + r_ring, ty + r_ring], outline=(255, 255, 255, 255), width=2)
+
+            # Layer 4: Solid Neon Core
+            r_core = int(W * 0.009)
+            draw.ellipse([tx - r_core, ty - r_core, tx + r_core, ty + r_core], fill=(r, g, b, 240))
+
+            # Layer 5: Centered Player Label
+            draw.text((tx, ty), scheme["label"], fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
+
+    # 3. Draw Translucent Center Scorecard & Game Log Dashboard
+    cx1 = int(W * 0.23)
+    cy1 = int(H * 0.44)
+    cx2 = int(W * 0.77)
+    cy2 = int(H * 0.88)
+
+    draw.rectangle([cx1, cy1, cx2, cy2], fill=(10, 15, 29, 210), outline=(0, 240, 255, 180), width=2)
+    draw.rectangle([cx1 + 4, cy1 + 4, cx2 - 4, cy2 - 4], outline=(244, 114, 182, 100), width=1)
+
+    draw.text((cx1 + 20, cy1 + 15), "MUTSERI'S WORLD MONOPOLY — LIVE STANDINGS", fill=(0, 240, 255, 255), font=font_header)
+    draw.line([cx1 + 20, cy1 + 40, cx2 - 20, cy1 + 40], fill=(255, 255, 255, 60), width=1)
+
+    card_y = cy1 + 50
     for idx, player in enumerate(game.player_list):
         state = game.get_player_state(player.id)
-        scheme = PLAYER_COLOR_SCHEMES[idx % len(PLAYER_COLOR_SCHEMES)]
+        scheme = PLAYER_NEON_SCHEMES[idx % len(PLAYER_NEON_SCHEMES)]
+        r, g, b = scheme["rgb"]
         is_current = (player.id == game.get_current_player().id)
         is_bankrupt = state.get("bankrupt", False)
 
-        card_bg = "#334155" if is_current else "#0F172A"
-        outline_color = "#EF4444" if is_bankrupt else (scheme["fill"] if is_current else "#475569")
-        draw.rectangle([cx1 + 30, card_y, cx2 - 30, card_y + 65], fill=card_bg, outline=outline_color, width=2)
+        card_bg = (30, 41, 59, 220) if is_current else (15, 23, 42, 180)
+        outline_c = (255, 0, 85, 255) if is_bankrupt else ((r, g, b, 255) if is_current else (71, 85, 105, 150))
 
-        draw.ellipse([cx1 + 45, card_y + 18, cx1 + 75, card_y + 48], fill=scheme["fill"], outline="#FFFFFF", width=2)
-        draw.text((cx1 + 52, card_y + 25), scheme["label"], fill="#FFFFFF", font=font_small)
+        draw.rectangle([cx1 + 20, card_y, cx2 - 20, card_y + 48], fill=card_bg, outline=outline_c, width=2)
 
-        status_tag = " [BANKRUPT 💥]" if is_bankrupt else (" [IN JAIL 🔒]" if state["in_jail"] else (" [CURRENT TURN]" if is_current else ""))
-        draw.text((cx1 + 90, card_y + 12), f"{player.display_name}{status_tag}", fill="#F8FAFC", font=font_body)
-        
-        tile_name = game.board[state["position"]]["name"].encode("ascii", "ignore").decode("ascii").strip()
-        stats_str = f"Cash: ${state['money']}  |  Properties: {len(state['properties'])}  |  Diplomatic Passes: {state.get('has_jail_card', 0)}"
-        draw.text((cx1 + 90, card_y + 36), stats_str, fill="#94A3B8", font=font_small)
+        draw.ellipse([cx1 + 32, card_y + 12, cx1 + 56, card_y + 36], fill=(r, g, b, 230), outline=(255, 255, 255, 255), width=2)
+        draw.text((cx1 + 44, card_y + 24), scheme["label"], fill=(255, 255, 255, 255), font=font_tiny, anchor="mm")
 
-        card_y += 75
+        status_str = " 💥 BANKRUPT" if is_bankrupt else (" 🔒 IN JAIL" if state["in_jail"] else (" [TURN]" if is_current else ""))
+        draw.text((cx1 + 68, card_y + 10), f"{player.display_name}{status_str}", fill=(255, 255, 255, 255), font=font_body)
 
-    draw.line([cx1 + 30, card_y + 10, cx2 - 30, card_y + 10], fill="#475569", width=2)
-    draw.text((cx1 + 30, card_y + 20), "RECENT GAME LOG", fill="#38BDF8", font=font_header)
+        stats_line = f"Cash: ${state['money']}  |  Props: {len(state['properties'])}  |  Passes: {state.get('has_jail_card', 0)}"
+        draw.text((cx1 + 68, card_y + 28), stats_line, fill=(148, 163, 184, 255), font=font_tiny)
 
-    log_y = card_y + 50
-    recent_logs = game.log[-5:] if game.log else ["Game started! Roll dice to begin."]
+        card_y += 56
+
+    draw.line([cx1 + 20, card_y + 6, cx2 - 20, card_y + 6], fill=(255, 255, 255, 60), width=1)
+    draw.text((cx1 + 20, card_y + 12), "RECENT GAME EVENTS", fill=(244, 114, 182, 255), font=font_header)
+
+    log_y = card_y + 34
+    recent_logs = game.log[-3:] if game.log else ["Game initialized. Roll the dice to begin!"]
     for log_msg in recent_logs:
         clean_log = log_msg.encode("ascii", "ignore").decode("ascii").strip()
-        draw.text((cx1 + 40, log_y), f"• {clean_log[:85]}", fill="#E2E8F0", font=font_small)
-        log_y += 24
+        draw.text((cx1 + 30, log_y), f"• {clean_log[:75]}", fill=(226, 232, 240, 255), font=font_tiny)
+        log_y += 18
+
+    # Combine Base Image and Overlay
+    final_img = Image.alpha_composite(base_img, overlay).convert("RGB")
 
     buf = io.BytesIO()
-    img.save(buf, format="PNG")
+    final_img.save(buf, format="PNG")
     buf.seek(0)
     return buf
