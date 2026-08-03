@@ -494,7 +494,7 @@ class TurnView(discord.ui.View):
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-bot = commands.Bot(command_prefix="ms!", intents=intents)
+bot = commands.Bot(command_prefix="ms!", intents=intents, help_command=None)
 
 active_games = {} 
 
@@ -667,6 +667,55 @@ async def board(ctx):
     embed = build_board_embed(game)
     embed.set_image(url="attachment://monopoly_board.png")
     await ctx.send(embed=embed, file=file)
+
+@bot.command(name="help")
+async def help_command(ctx):
+    """Displays a list of all available commands and how to play."""
+    embed = discord.Embed(
+        title="🌍 Mutseri's World Monopoly — Command Guide",
+        description="Welcome to **Mutseri's World Monopoly**! Here are all the available commands to manage games, trade, check career stats, and claim daily rewards.",
+        color=discord.Color.blue()
+    )
+
+    embed.add_field(
+        name="🎮 Game Controls",
+        value=(
+            "`ms!start_monopoly @user1 [@user2]` — Start a 2–4 player game in this channel.\n"
+            "`ms!board` — View the live 2D board render and full property list.\n"
+            "`ms!end_monopoly` — End the active Monopoly game in this channel."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="🤝 Trading & Actions",
+        value=(
+            "`ms!trade @user [offer_cash] [req_cash]` — Propose a 90s trade deal.\n"
+            "ℹ️ *In-game turn actions (Rolling, Buying, Building, Mortgaging, Unmortgaging, Selling) are played using interactive buttons under the board!*"
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="💰 Daily Rewards & Customization",
+        value=(
+            "`ms!daily` — Claim daily cash + streak bonus (60h grace period).\n"
+            "`ms!set_token <emoji>` — Equip a custom token emoji (`🔴`, `🔵`, `🟢`, `🟡`, `👑`, `🚀`, `💎`, `🦁`, etc.)."
+        ),
+        inline=False
+    )
+
+    embed.add_field(
+        name="📊 Stats & Leaderboards",
+        value=(
+            "`ms!stats [@user]` — View career wins, total games played, win rate, and streak.\n"
+            "`ms!leaderboard` — View the top 10 Monopoly Tycoons on the server."
+        ),
+        inline=False
+    )
+
+    embed.set_footer(text="Command Prefix: ms! • Roll the dice & build your global empire!")
+    await ctx.send(embed=embed)
 
 # ---------------------------------------------------------------------------
 # Keep-alive web server (required by Render; pinged by UptimeRobot)
