@@ -715,7 +715,12 @@ async def help_command(ctx):
     )
 
     embed.set_footer(text="Command Prefix: ms! • Roll the dice & build your global empire!")
-    await ctx.send(embed=embed)
+    try:
+        await ctx.author.send(embed=embed)
+        if ctx.guild:
+            await ctx.send(f"📬 {ctx.author.mention}, I've sent you the command guide in your Direct Messages!")
+    except discord.Forbidden:
+        await ctx.send(f"⚠️ {ctx.author.mention}, I couldn't send you a Direct Message! Please check your privacy settings.", embed=embed)
 
 # ---------------------------------------------------------------------------
 # Keep-alive web server (required by Render; pinged by UptimeRobot)
