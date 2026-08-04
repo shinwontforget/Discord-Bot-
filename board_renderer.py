@@ -24,6 +24,14 @@ PLAYER_NEON_SCHEMES = [
 ]
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "board_template.png")
+CLEAN_SOURCE = r"C:\Users\Soumil\.gemini\antigravity-ide\brain\95dd499b-93c3-47c2-9e97-b5bcbc8bdac5\media__1785853687216.png"
+
+if os.path.exists(CLEAN_SOURCE):
+    try:
+        if not os.path.exists(TEMPLATE_PATH) or os.path.getsize(TEMPLATE_PATH) != os.path.getsize(CLEAN_SOURCE):
+            shutil.copyfile(CLEAN_SOURCE, TEMPLATE_PATH)
+    except Exception:
+        pass
 
 def get_font(size=14, bold=False):
     font_candidates = [
@@ -40,10 +48,11 @@ def get_font(size=14, bold=False):
     return ImageFont.load_default()
 
 def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
-    margin_x_left = int(0.132 * W)
-    margin_x_right = int(0.868 * W)
-    margin_y_top = int(0.160 * H)
-    margin_y_bottom = int(0.840 * H)
+    # Exact 14% corner grid layout from code.html: grid-template-columns: 14% repeat(9, 1fr) 14%
+    margin_x_left = int(0.140 * W)
+    margin_x_right = int(0.860 * W)
+    margin_y_top = int(0.140 * H)
+    margin_y_bottom = int(0.860 * H)
 
     tile_w = (margin_x_right - margin_x_left) / 9.0
     tile_h = (margin_y_bottom - margin_y_top) / 9.0
