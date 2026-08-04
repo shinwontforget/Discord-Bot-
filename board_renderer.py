@@ -24,13 +24,6 @@ PLAYER_NEON_SCHEMES = [
 ]
 
 TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "board_template.png")
-ALT_SOURCE = r"C:\Users\Soumil\.gemini\antigravity-ide\brain\e8f112d4-3ae1-4183-a2d1-7820ce3f0e91\media__1785782821637.png"
-
-if not os.path.exists(TEMPLATE_PATH) and os.path.exists(ALT_SOURCE):
-    try:
-        shutil.copy(ALT_SOURCE, TEMPLATE_PATH)
-    except Exception:
-        pass
 
 def get_font(size=14, bold=False):
     font_candidates = [
@@ -78,13 +71,6 @@ def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
     raise ValueError(f"Invalid position {pos}")
 
 def render_board_image(game) -> io.BytesIO:
-    # Ensure template image is copied locally
-    if not os.path.exists(TEMPLATE_PATH) and os.path.exists(ALT_SOURCE):
-        try:
-            shutil.copy(ALT_SOURCE, TEMPLATE_PATH)
-        except Exception:
-            pass
-
     if os.path.exists(TEMPLATE_PATH):
         base_img = Image.open(TEMPLATE_PATH).convert("RGBA")
     else:
@@ -110,126 +96,167 @@ def render_board_image(game) -> io.BytesIO:
         tile_w = x2 - x1
         tile_h = y2 - y1
 
-        # Draw Owner Glow Border
+        # Determine inner text slot zone for each tile side so we don't cover color bars
+        pad = 2
+        if 1 <= pos <= 9:
+            # Top row: header bar at top (~20%), slot box below
+            cx1 = x1 + pad
+            cy1 = y1 + int(tile_h * 0.20)
+            cx2 = x2 - pad
+            cy2 = y2 - pad
+        elif 11 <= pos <= 19:
+            # Right column: accent bar on left (~22%), slot box to right
+            cx1 = x1 + int(tile_w * 0.22)
+            cy1 = y1 + pad
+            cx2 = x2 - pad
+            cy2 = y2 - pad
+        elif 21 <= pos <= 29:
+            # Bottom row: header bar at top (~20%), slot box below
+            cx1 = x1 + pad
+            cy1 = y1 + int(tile_h * 0.20)
+            cx2 = x2 - pad
+            cy2 = y2 - pad
+        elif 31 <= pos <= 39:
+            # Left column: accent bar on right (~22%), slot box to left
+            cx1 = x1 + pad
+            cy1 = y1 + pad
+            cx2 = x2 - int(tile_w * 0.22)
+            cy2 = y2 - pad
+        else:
+            cx1, cy1, cx2, cy2 = x1, y1, x2, y2
+
+        # Draw Owner Glow Border & Badge if property is owned
         if pos in game.properties_owned:
             owner_id = game.properties_owned[pos]
             owner_idx = next((i for i, p in enumerate(game.player_list) if p.id == owner_id), 0)
             scheme = PLAYER_NEON_SCHEMES[owner_idx % len(PLAYER_NEON_SCHEMES)]
             r, g, b = scheme["rgb"]
 
-            draw.rectangle([x1 + 1, y1 + 1, x2 - 1, y2 - 1], outline=(r, g, b, 120), width=4)
-            draw.rectangle([x1 + 3, y1 + 3, x2 - 3, y2 - 3], outline=(r, g, b, 255), width=2)
+            # Glowing owner border outline around tile frame
+            draw.rectangle([cx1 - 1, cy1 - 1, cx2 + 1, cy2 + 1], outline=(r, g, b, 120), width=3)
+            draw.rectangle([cx1, cy1, cx2, cy2], outline=(r, g, b, 255), width=2)
 
-        # Draw Dynamic City / Special Tile Name
+            # Owner Badge (P1, P2...) in top-left of text slot
+            badge_font = get_font(max(8, int(min(tile_w, tile_h) * 0.14)), bold=True)
+            draw.rectangle([cx1 + 2, cy1 + 2, cx1 + 18, cy1 + 12], fill=(r, g, b, 230))
+            draw.text((cx1 + 10, cy1 + 7), scheme["label"], fill=(0, 0, 0, 255), font=badge_font, anchor="mm")
+
+        # Overlay text & elements directly onto template (NO opaque box fill)
         if pos not in (0, 10, 20, 30):
+            clean_label = ""
+            clean_label2 = ""
+
             if tile_type == "property":
                 city_name = tile.get("city", "")
                 if not city_name:
-                    raw_name = tile["name"]
-                    parts = raw_name.split(",")
-                    city_name = parts[0].strip()
-                # Strip emoji characters only
-                city_name = "".join([c for c in city_name if not (0x1F600 <= ord(c) <= 0x1F9FF or 0x1F300 <= ord(c) <= 0x1F5FF or 0x1F680 <= ord(c) <= 0x1F6FF or 0x2600 <= ord(c) <= 0x27BF)]).strip()
-                # Split into two lines if long
+                    raw_name = tile.get("name", "")
+                    city_name = raw_name.split(",")[0].strip()
+                # Clean non-ASCII / emoji characters
+                city_name = "".join([c for c in city_name if ord(c) < 128 or ord(c) > 255]).strip()
+                if not city_name:
+                    city_name = tile.get("country", "CITY")
+
                 words = city_name.upper().split()
                 if len(words) == 1:
-                    line1, line2 = words[0][:10], ""
+                    clean_label = words[0]
+                    clean_label2 = ""
                 elif len(words) == 2:
-                    line1, line2 = words[0][:10], words[1][:10]
+                    clean_label = words[0]
+                    clean_label2 = words[1]
                 else:
-                    line1 = " ".join(words[:len(words)//2 + 1])[:10]
-                    line2 = " ".join(words[len(words)//2 + 1:])[:10]
-                clean_label = line1
-                clean_label2 = line2
+                    mid = len(words) // 2
+                    clean_label = " ".join(words[:mid])
+                    clean_label2 = " ".join(words[mid:])
+
             elif tile_type == "community_chest":
-                clean_label, clean_label2 = "TREASURY", ""
+                clean_label = "WORLD"
+                clean_label2 = "TREASURY"
             elif tile_type == "chance":
-                clean_label, clean_label2 = "NEWS", ""
+                clean_label = "GLOBAL"
+                clean_label2 = "NEWS"
             elif tile_type == "tax":
-                clean_label, clean_label2 = "TAX", ""
+                clean_label = "TAX"
+                clean_label2 = ""
             elif tile_type == "railroad":
-                clean_label, clean_label2 = "AIRPORT", ""
+                raw_name = tile.get("name", "")
+                airport_parts = [w for w in raw_name.replace("✈️", "").split() if w.lower() not in ("international", "airport")]
+                clean_label = airport_parts[0].upper() if airport_parts else "JFK"
+                clean_label2 = "AIRPORT"
             elif tile_type == "utility":
-                clean_label, clean_label2 = "UTILITY", ""
+                raw_name = tile.get("name", "")
+                utility_parts = [w for w in raw_name.replace("⚡", "").replace("📡", "").replace("☢️", "").replace("🛰️", "").split()]
+                clean_label = utility_parts[0].upper() if utility_parts else "UTILITY"
+                clean_label2 = utility_parts[1].upper() if len(utility_parts) > 1 else ""
             else:
-                clean_label, clean_label2 = tile_type.upper()[:10], ""
+                clean_label = tile_type.upper()
 
-            # --- Cover template's baked-in text with a dark fill ---
-            # Determine the text zone for this tile side
-            pad = 3
-            if 1 <= pos <= 9:
-                # Top row: cover inner 80% horizontally, top 85% vertically (leave color-bar bottom)
-                cx1 = x1 + pad
-                cy1 = y1 + pad
-                cx2 = x2 - pad
-                cy2 = y2 - int(tile_h * 0.18)  # leave the colored bar strip at bottom
-            elif 21 <= pos <= 29:
-                # Bottom row: cover inner, leave color-bar at top
-                cx1 = x1 + pad
-                cy1 = y1 + int(tile_h * 0.18)  # leave colored bar at top
-                cx2 = x2 - pad
-                cy2 = y2 - pad
-            elif 11 <= pos <= 19:
-                # Right column: leave color-bar on left edge
-                cx1 = x1 + int(tile_w * 0.22)
-                cy1 = y1 + pad
-                cx2 = x2 - pad
-                cy2 = y2 - pad
-            else:  # 31 <= pos <= 39, left column
-                # Leave color-bar on right edge
-                cx1 = x1 + pad
-                cy1 = y1 + pad
-                cx2 = x2 - int(tile_w * 0.22)
-                cy2 = y2 - pad
+            # Dynamic Font Sizing to fit slot box
+            box_w = cx2 - cx1
+            box_h = cy2 - cy1
+            narrow = min(box_w, box_h)
 
-            draw.rectangle([cx1, cy1, cx2, cy2], fill=(8, 12, 28, 235))
-
-            # Font sizing: use tile's narrower dimension for scale
-            narrow = min(tile_w, tile_h)
-            target_font_size = max(9, min(14, int(narrow * 0.18)))
-            tile_font = get_font(target_font_size, bold=True)
-            price_font = get_font(max(8, target_font_size - 2), bold=False)
+            base_size = max(8, min(12, int(narrow * 0.20)))
+            tile_font = get_font(base_size, bold=True)
+            price_font = get_font(max(7, base_size - 2), bold=True)
 
             text_x = (cx1 + cx2) // 2
 
             if tile_type == "property":
-                # Two-line city name, centered
-                line_gap = target_font_size + 2
-                total_text_h = (line_gap * (2 if clean_label2 else 1))
-                center_y = (cy1 + cy2) // 2
-                ty1 = center_y - total_text_h // 2 + line_gap // 2
-                draw.text((text_x, ty1), clean_label, fill=(255, 255, 255, 245), font=tile_font, anchor="mm")
+                line_gap = base_size + 2
+                num_lines = 2 if clean_label2 else 1
+                total_h = line_gap * num_lines
+                center_y = (cy1 + cy2) // 2 - 4
+
+                ty1 = center_y - total_h // 2 + line_gap // 2
+
+                # Text with subtle drop shadow for high contrast on dark template
+                draw.text((text_x + 1, ty1 + 1), clean_label, fill=(0, 0, 0, 220), font=tile_font, anchor="mm")
+                draw.text((text_x, ty1), clean_label, fill=(255, 255, 255, 255), font=tile_font, anchor="mm")
+
                 if clean_label2:
-                    draw.text((text_x, ty1 + line_gap), clean_label2, fill=(255, 255, 255, 245), font=tile_font, anchor="mm")
-                # Price at bottom of text zone
+                    draw.text((text_x + 1, ty1 + line_gap + 1), clean_label2, fill=(0, 0, 0, 220), font=tile_font, anchor="mm")
+                    draw.text((text_x, ty1 + line_gap), clean_label2, fill=(255, 255, 255, 255), font=tile_font, anchor="mm")
+
+                # Price at bottom of tile slot if unowned
                 if pos not in game.properties_owned:
                     price = tile.get("price", 0)
-                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
+                    draw.text((text_x + 1, cy2 - base_size // 2 - 1), f"${price}", fill=(0, 0, 0, 220), font=price_font, anchor="mm")
+                    draw.text((text_x, cy2 - base_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
+
             else:
-                # Single label centered
-                center_y = (cy1 + cy2) // 2
-                draw.text((text_x, center_y), clean_label, fill=(255, 255, 255, 230), font=tile_font, anchor="mm")
-                # Price for railroad/utility
+                line_gap = base_size + 2
+                num_lines = 2 if clean_label2 else 1
+                total_h = line_gap * num_lines
+                center_y = (cy1 + cy2) // 2 - 4
+                ty1 = center_y - total_h // 2 + line_gap // 2
+
+                draw.text((text_x + 1, ty1 + 1), clean_label, fill=(0, 0, 0, 220), font=tile_font, anchor="mm")
+                draw.text((text_x, ty1), clean_label, fill=(255, 235, 170, 255), font=tile_font, anchor="mm")
+
+                if clean_label2:
+                    draw.text((text_x + 1, ty1 + line_gap + 1), clean_label2, fill=(0, 0, 0, 220), font=tile_font, anchor="mm")
+                    draw.text((text_x, ty1 + line_gap), clean_label2, fill=(255, 235, 170, 255), font=tile_font, anchor="mm")
+
                 if tile_type in ("railroad", "utility") and pos not in game.properties_owned:
                     price = tile.get("price", 0)
-                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
+                    draw.text((text_x, cy2 - base_size // 2 - 2), f"${price}", fill=(0, 240, 255, 255), font=price_font, anchor="mm")
                 elif tile_type == "tax":
                     amount = tile.get("amount", 0)
-                    draw.text((text_x, cy2 - target_font_size // 2 - 2), f"-${amount}", fill=(255, 80, 80, 255), font=price_font, anchor="mm")
+                    draw.text((text_x, cy2 - base_size // 2 - 2), f"-${amount}", fill=(255, 80, 80, 255), font=price_font, anchor="mm")
 
-            # Draw Mortgaged Badge
+            # Draw Mortgaged Status Overlay
             if is_mortgaged:
-                draw.rectangle([cx1 + 2, cy1 + (tile_h // 3), cx2 - 2, cy1 + (2 * tile_h // 3)], fill=(255, 0, 0, 180))
-                draw.text((text_x, cy1 + (tile_h // 2)), "MORTGAGED", fill=(255, 255, 255, 255), font=price_font, anchor="mm")
+                draw.rectangle([cx1 + 2, (cy1 + cy2)//2 - 8, cx2 - 2, (cy1 + cy2)//2 + 8], fill=(220, 20, 40, 200))
+                draw.text((text_x, (cy1 + cy2)//2), "MORTGAGED", fill=(255, 255, 255, 255), font=price_font, anchor="mm")
 
-            # Draw Houses/Skyscraper Indicator
+            # Draw Houses/Skyscraper Indicator on Corner
             houses = tile.get("houses", 0)
             if houses > 0:
                 h_text = "SKY" if houses == 5 else f"{houses}H"
-                hw = 26
-                hh = 14
-                draw.rectangle([cx1 + 2, cy1 + 2, cx1 + hw, cy1 + hh], fill=(0, 200, 255, 230))
-                draw.text((cx1 + hw // 2 + 1, cy1 + hh // 2 + 1), h_text, fill=(0, 0, 0, 255), font=price_font, anchor="mm")
+                hw = 24
+                hh = 12
+                draw.rectangle([cx2 - hw - 2, cy1 + 2, cx2 - 2, cy1 + hh + 2], fill=(0, 220, 130, 240))
+                draw.text((cx2 - hw // 2 - 2, cy1 + hh // 2 + 2), h_text, fill=(0, 0, 0, 255), font=font_tiny, anchor="mm")
 
     # 2. Draw Multi-Layer Glowing Neon Player Piece Locators
     pos_players: dict[int, list[int]] = {}
@@ -277,7 +304,5 @@ def render_board_image(game) -> io.BytesIO:
 
     buf = io.BytesIO()
     final_img.save(buf, format="PNG")
-    buf.seek(0)
-    return buf
     buf.seek(0)
     return buf
