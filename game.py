@@ -47,57 +47,57 @@ def generate_random_country_board():
         # CORNER 0
         {"name": "🛫 START / GO", "type": "go"},
 
-        # PATH 1 — Budget
-        _make_city_tile(b1, 0, "brown",      60,  [2,  10,  30,  90,  160,  250]),
+        # PATH 1 — Budget (Top Row — Red Headers)
+        _make_city_tile(b1, 0, "red",        60,  [2,  10,  30,  90,  160,  250]),
         {"name": "🏦 World Treasury",            "type": "community_chest"},
-        _make_city_tile(b1, 1, "brown",      60,  [4,  20,  60, 180,  320,  450]),
+        _make_city_tile(b1, 1, "red",        60,  [4,  20,  60, 180,  320,  450]),
         {"name": "📉 Budget Import Duty",        "type": "tax", "amount": 75},
         {"name": "✈️ JFK International Airport", "type": "railroad", "price": 200, "is_mortgaged": False},
-        _make_city_tile(b2, 0, "light_blue", 100, [6,  30,  90, 270,  400,  550]),
+        _make_city_tile(b2, 0, "red",       100, [6,  30,  90, 270,  400,  550]),
         {"name": "🌐 Global News Event",         "type": "chance"},
-        _make_city_tile(b2, 1, "light_blue", 120, [8,  40, 100, 300,  450,  600]),
+        _make_city_tile(b2, 1, "red",       120, [8,  40, 100, 300,  450,  600]),
         {"name": "⚡ Global Solar Grid",         "type": "utility", "price": 150, "is_mortgaged": False},
 
         # CORNER 10
         {"name": "🛂 Customs Clearance / Border Control", "type": "jail"},
 
-        # PATH 2 — Mid-Low
-        _make_city_tile(ml1, 0, "pink",   140, [10,  50, 150, 450,  625,  750]),
+        # PATH 2 — Mid-Low (Right Column — Green Headers)
+        _make_city_tile(ml1, 0, "green",   140, [10,  50, 150, 450,  625,  750]),
         {"name": "🏦 World Treasury",           "type": "community_chest"},
-        _make_city_tile(ml1, 1, "pink",   160, [12,  60, 180, 500,  700,  900]),
+        _make_city_tile(ml1, 1, "green",   160, [12,  60, 180, 500,  700,  900]),
         {"name": "🧾 Regional Business Tax",    "type": "tax", "amount": 125},
         {"name": "✈️ Heathrow Airport",         "type": "railroad", "price": 200, "is_mortgaged": False},
-        _make_city_tile(ml2, 0, "orange", 180, [14,  70, 200, 550,  750,  950]),
+        _make_city_tile(ml2, 0, "green", 180, [14,  70, 200, 550,  750,  950]),
         {"name": "🌐 Global News Event",        "type": "chance"},
-        _make_city_tile(ml2, 1, "orange", 200, [16,  80, 220, 600,  800, 1000]),
+        _make_city_tile(ml2, 1, "green", 200, [16,  80, 220, 600,  800, 1000]),
         {"name": "📡 Satellite Telecom Network","type": "utility", "price": 150, "is_mortgaged": False},
 
         # CORNER 20
         {"name": "🏝️ International Waters", "type": "free_parking"},
 
-        # PATH 3 — Mid-High
-        _make_city_tile(mh1, 0, "red",    220, [18,  90, 250, 700,  875, 1050]),
+        # PATH 3 — Mid-High (Bottom Row — Light Blue Headers)
+        _make_city_tile(mh1, 0, "light_blue", 220, [18,  90, 250, 700,  875, 1050]),
         {"name": "🏦 World Treasury",          "type": "community_chest"},
-        _make_city_tile(mh1, 1, "red",    240, [20, 100, 300, 750,  925, 1100]),
+        _make_city_tile(mh1, 1, "light_blue", 240, [20, 100, 300, 750,  925, 1100]),
         {"name": "💼 Corporate Travel Tax",    "type": "tax", "amount": 175},
         {"name": "✈️ Haneda Airport",          "type": "railroad", "price": 200, "is_mortgaged": False},
-        _make_city_tile(mh2, 0, "yellow", 260, [22, 110, 330, 800,  975, 1150]),
+        _make_city_tile(mh2, 0, "light_blue", 260, [22, 110, 330, 800,  975, 1150]),
         {"name": "🌐 Global News Event",       "type": "chance"},
-        _make_city_tile(mh2, 1, "yellow", 280, [24, 120, 360, 850, 1025, 1200]),
+        _make_city_tile(mh2, 1, "light_blue", 280, [24, 120, 360, 850, 1025, 1200]),
         {"name": "☢️ Nuclear Energy Grid",     "type": "utility", "price": 200, "is_mortgaged": False},
 
         # CORNER 30
         {"name": "🚨 Deportation / Border Violation", "type": "go_to_jail"},
 
-        # PATH 4 — Premium
-        _make_city_tile(p1, 0, "green",     300, [26, 130, 390,  900, 1100, 1275]),
+        # PATH 4 — Premium (Left Column — Pink Headers)
+        _make_city_tile(p1, 0, "pink",     300, [26, 130, 390,  900, 1100, 1275]),
         {"name": "🏦 World Treasury",             "type": "community_chest"},
-        _make_city_tile(p1, 1, "green",     320, [28, 150, 450, 1000, 1200, 1400]),
+        _make_city_tile(p1, 1, "pink",     320, [28, 150, 450, 1000, 1200, 1400]),
         {"name": "📈 Luxury Tariff",              "type": "tax", "amount": 250},
         {"name": "✈️ Dubai International Airport","type": "railroad", "price": 200, "is_mortgaged": False},
-        _make_city_tile(p2, 0, "dark_blue", 350, [35, 175, 500, 1100, 1300, 1500]),
+        _make_city_tile(p2, 0, "pink", 350, [35, 175, 500, 1100, 1300, 1500]),
         {"name": "🌐 Global News Event",          "type": "chance"},
-        _make_city_tile(p2, 1, "dark_blue", 400, [50, 200, 600, 1400, 1700, 2000]),
+        _make_city_tile(p2, 1, "pink", 400, [50, 200, 600, 1400, 1700, 2000]),
         {"name": "🛰️ Global Satellite Hub",      "type": "utility", "price": 200, "is_mortgaged": False},
     ]
 
@@ -161,10 +161,15 @@ class MonopolyGame:
         old_pos = player["position"]
         new_pos = (old_pos + steps) % 40
         player["position"] = new_pos
-        
-        if new_pos < old_pos:
+
+        if new_pos == 0:
+            # Landed exactly on START — collect double salary
+            player["money"] += 400
+            self.log_event(f"🛫 {player['member'].display_name} landed exactly on START and collected $400!")
+        elif new_pos < old_pos:
+            # Passed through START — collect standard salary
             player["money"] += 200
-            self.log_event(f"{player['member'].display_name} passed START and collected $200.")
+            self.log_event(f"🛫 {player['member'].display_name} passed START and collected $200.")
 
         self.log_event(f"{player['member'].display_name} moved to {self.board[new_pos]['name']}.")
         self.handle_landing(player_id, new_pos)

@@ -116,28 +116,28 @@ def render_board_image(game) -> io.BytesIO:
         # Determine inner text slot zone for each tile side so we don't cover color bars
         pad = 2
         if 1 <= pos <= 9:
-            # Top row: header bar at top (~25%), slot box below
+            # Top row: color bar at BOTTOM, slot fills top 75%
             cx1 = x1 + pad
-            cy1 = y1 + int(tile_h * 0.25)
+            cy1 = y1 + pad
             cx2 = x2 - pad
-            cy2 = y2 - pad
+            cy2 = y2 - int(tile_h * 0.28)  # leave space for bottom color bar
         elif 11 <= pos <= 19:
-            # Right column: accent bar on left (~25%), slot box to right
-            cx1 = x1 + int(tile_w * 0.25)
+            # Right column: color bar on LEFT, slot fills right 75%
+            cx1 = x1 + int(tile_w * 0.28)  # leave space for left color bar
             cy1 = y1 + pad
             cx2 = x2 - pad
             cy2 = y2 - pad
         elif 21 <= pos <= 29:
-            # Bottom row: header bar at top (~25%), slot box below
+            # Bottom row: color bar at TOP (closest to center), slot fills bottom 75%
             cx1 = x1 + pad
-            cy1 = y1 + int(tile_h * 0.25)
+            cy1 = y1 + int(tile_h * 0.28)  # leave space for top color bar
             cx2 = x2 - pad
             cy2 = y2 - pad
         elif 31 <= pos <= 39:
-            # Left column: accent bar on right (~25%), slot box to left
+            # Left column: color bar on RIGHT, slot fills left 75%
             cx1 = x1 + pad
             cy1 = y1 + pad
-            cx2 = x2 - int(tile_w * 0.25)
+            cx2 = x2 - int(tile_w * 0.28)  # leave space for right color bar
             cy2 = y2 - pad
         else:
             cx1, cy1, cx2, cy2 = x1, y1, x2, y2

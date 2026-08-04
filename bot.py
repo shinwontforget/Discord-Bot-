@@ -1,4 +1,5 @@
 import os
+import time
 import asyncio
 import discord
 from aiohttp import web
@@ -448,6 +449,16 @@ class TurnView(discord.ui.View):
             color=discord.Color.green()
         )
         await self.update_turn_message(interaction, embed)
+
+        # Ping the next player in channel with a live 90s Discord countdown timer
+        deadline_ts = int(time.time()) + 90
+        channel = bot.get_channel(self.channel_id)
+        if channel:
+            await channel.send(
+                f"🎲 {next_player.mention} — **It's your turn!** Roll the dice before the timer runs out!\n"
+                f"⏱️ Turn expires: <t:{deadline_ts}:R>"
+            )
+
 
     async def board_callback(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True)
