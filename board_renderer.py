@@ -49,8 +49,8 @@ def get_font(size=14, bold=False):
 
 def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
     # Exact board grid alignment for clean board_template.png
-    margin_x_left = int(0.135 * W)
-    margin_x_right = int(0.865 * W)
+    margin_x_left = int(0.140 * W)
+    margin_x_right = int(0.860 * W)
     margin_y_top = int(0.145 * H)
     margin_y_bottom = int(0.855 * H)
 
@@ -65,18 +65,26 @@ def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
         return (margin_x_right, margin_y_bottom, W, H)
     elif pos == 30:  # Bottom-Left GO TO JAIL
         return (0, margin_y_bottom, margin_x_left, H)
-    elif 1 <= pos <= 9:  # Top Row (left to right)
-        x1 = int(margin_x_left + (pos - 1) * tile_w)
-        return (x1, int(0.015 * H), int(x1 + tile_w), margin_y_top)
-    elif 11 <= pos <= 19:  # Right Column (top to bottom)
-        y1 = int(margin_y_top + (pos - 11) * tile_h)
-        return (margin_x_right, y1, int(0.985 * W), int(y1 + tile_h))
-    elif 21 <= pos <= 29:  # Bottom Row (right to left)
-        x1 = int(margin_x_right - (pos - 20) * tile_w)
-        return (x1, margin_y_bottom, int(x1 + tile_w), int(0.985 * H))
-    elif 31 <= pos <= 39:  # Left Column (bottom to top)
-        y1 = int(margin_y_bottom - (pos - 30) * tile_h)
-        return (int(0.015 * W), int(y1 - tile_h), margin_x_left, int(y1))
+    elif 1 <= pos <= 9:  # Top Row (left to right, pos 1 next to START, pos 9 next to JAIL)
+        step = pos - 1
+        x1 = int(margin_x_left + step * tile_w)
+        x2 = int(x1 + tile_w)
+        return (x1, int(0.015 * H), x2, margin_y_top)
+    elif 11 <= pos <= 19:  # Right Column (top to bottom, pos 11 below JAIL, pos 19 above VACATION)
+        step = pos - 11
+        y1 = int(margin_y_top + step * tile_h)
+        y2 = int(y1 + tile_h)
+        return (margin_x_right, y1, int(0.985 * W), y2)
+    elif 21 <= pos <= 29:  # Bottom Row (right to left, pos 21 next to VACATION, pos 29 next to GO TO JAIL)
+        step = pos - 21
+        x2 = int(margin_x_right - step * tile_w)
+        x1 = int(x2 - tile_w)
+        return (x1, margin_y_bottom, x2, int(0.985 * H))
+    elif 31 <= pos <= 39:  # Left Column (bottom to top, pos 31 above GO TO JAIL, pos 39 below START)
+        step = pos - 31
+        y2 = int(margin_y_bottom - step * tile_h)
+        y1 = int(y2 - tile_h)
+        return (int(0.015 * W), y1, margin_x_left, y2)
     raise ValueError(f"Invalid position {pos}")
 
 def render_board_image(game) -> io.BytesIO:
