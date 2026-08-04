@@ -55,58 +55,7 @@ A feature-rich, interactive Discord bot that lets server members play a custom *
 
 ---
 
-## 🚀 Quick Start & Installation
 
-### 1. Clone the Repository
-```bash
-git clone https://github.com/your-username/southpark-monopoly-bot.git
-cd southpark-monopoly-bot
-```
-
-### 2. Set Up Virtual Environment
-```bash
-python -m venv .venv
-# On Windows:
-.venv\Scripts\activate
-# On Linux/macOS:
-source .venv/bin/activate
-```
-
-### 3. Install Dependencies
-```bash
-pip install -r requirements.txt
-```
-
-### 4. Configure Environment Variables
-Create a `.env` file in the root directory:
-```env
-DISCORD_TOKEN=your_discord_bot_token_here
-```
-
-### 5. Run the Bot
-```bash
-python bot.py
-```
-
----
-
-## ☁️ Hosting & Deployment
-
-This project includes a `discloud.config` file pre-configured for deployment on **Discloud**:
-
-```ini
-NAME=MonopolyBot
-TYPE=bot
-MAIN=bot.py
-RAM=100
-AUTORESTART=false
-VERSION=3.11
-APT=tools
-```
-
-Simply zip `bot.py`, `game.py`, `requirements.txt`, and `discloud.config` and upload via the Discloud Dashboard or CLI.
-
----
 
 ## 📜 Terms of Service (ToS)
 
