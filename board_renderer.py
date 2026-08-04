@@ -48,11 +48,11 @@ def get_font(size=14, bold=False):
     return ImageFont.load_default()
 
 def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
-    # Exact 14% corner grid layout from code.html: grid-template-columns: 14% repeat(9, 1fr) 14%
-    margin_x_left = int(0.140 * W)
-    margin_x_right = int(0.860 * W)
-    margin_y_top = int(0.140 * H)
-    margin_y_bottom = int(0.860 * H)
+    # Exact board grid alignment for clean board_template.png
+    margin_x_left = int(0.135 * W)
+    margin_x_right = int(0.865 * W)
+    margin_y_top = int(0.145 * H)
+    margin_y_bottom = int(0.855 * H)
 
     tile_w = (margin_x_right - margin_x_left) / 9.0
     tile_h = (margin_y_bottom - margin_y_top) / 9.0
@@ -67,16 +67,16 @@ def get_tile_bounds(pos: int, W: int, H: int) -> tuple[int, int, int, int]:
         return (0, margin_y_bottom, margin_x_left, H)
     elif 1 <= pos <= 9:  # Top Row (left to right)
         x1 = int(margin_x_left + (pos - 1) * tile_w)
-        return (x1, 0, int(x1 + tile_w), margin_y_top)
+        return (x1, int(0.015 * H), int(x1 + tile_w), margin_y_top)
     elif 11 <= pos <= 19:  # Right Column (top to bottom)
         y1 = int(margin_y_top + (pos - 11) * tile_h)
-        return (margin_x_right, y1, W, int(y1 + tile_h))
+        return (margin_x_right, y1, int(0.985 * W), int(y1 + tile_h))
     elif 21 <= pos <= 29:  # Bottom Row (right to left)
         x1 = int(margin_x_right - (pos - 20) * tile_w)
-        return (x1, margin_y_bottom, int(x1 + tile_w), H)
+        return (x1, margin_y_bottom, int(x1 + tile_w), int(0.985 * H))
     elif 31 <= pos <= 39:  # Left Column (bottom to top)
         y1 = int(margin_y_bottom - (pos - 30) * tile_h)
-        return (0, int(y1 - tile_h), margin_x_left, int(y1))
+        return (int(0.015 * W), int(y1 - tile_h), margin_x_left, int(y1))
     raise ValueError(f"Invalid position {pos}")
 
 def render_board_image(game) -> io.BytesIO:
@@ -108,28 +108,28 @@ def render_board_image(game) -> io.BytesIO:
         # Determine inner text slot zone for each tile side so we don't cover color bars
         pad = 2
         if 1 <= pos <= 9:
-            # Top row: header bar at top (~20%), slot box below
+            # Top row: header bar at top (~25%), slot box below
             cx1 = x1 + pad
-            cy1 = y1 + int(tile_h * 0.20)
+            cy1 = y1 + int(tile_h * 0.25)
             cx2 = x2 - pad
             cy2 = y2 - pad
         elif 11 <= pos <= 19:
-            # Right column: accent bar on left (~22%), slot box to right
-            cx1 = x1 + int(tile_w * 0.22)
+            # Right column: accent bar on left (~25%), slot box to right
+            cx1 = x1 + int(tile_w * 0.25)
             cy1 = y1 + pad
             cx2 = x2 - pad
             cy2 = y2 - pad
         elif 21 <= pos <= 29:
-            # Bottom row: header bar at top (~20%), slot box below
+            # Bottom row: header bar at top (~25%), slot box below
             cx1 = x1 + pad
-            cy1 = y1 + int(tile_h * 0.20)
+            cy1 = y1 + int(tile_h * 0.25)
             cx2 = x2 - pad
             cy2 = y2 - pad
         elif 31 <= pos <= 39:
-            # Left column: accent bar on right (~22%), slot box to left
+            # Left column: accent bar on right (~25%), slot box to left
             cx1 = x1 + pad
             cy1 = y1 + pad
-            cx2 = x2 - int(tile_w * 0.22)
+            cx2 = x2 - int(tile_w * 0.25)
             cy2 = y2 - pad
         else:
             cx1, cy1, cx2, cy2 = x1, y1, x2, y2
